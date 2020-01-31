@@ -22,8 +22,10 @@ const int ProtocolId = 0x11223344;
 const float DeltaTime = 1.0f / 30.0f;
 const float SendRate = 1.0f / 30.0f;
 const float TimeOut = 10.0f;
-const int PacketSize = 256;
+const int PacketSize = PACKETSIZE;
+bool continueRead = true;
 
+//--------------- FlowControl Class --------------//
 class FlowControl
 {
 public:
@@ -36,7 +38,7 @@ public:
 	
 	void Reset()
 	{
-		mode = Bad;
+		mode = Bad;		// Oh no... NOT THE BAD MODE
 		penalty_time = 4.0f;
 		good_conditions_time = 0.0f;
 		penalty_reduction_accumulator = 0.0f;
@@ -45,7 +47,7 @@ public:
 	void Update( float deltaTime, float rtt )
 	{
 		const float RTT_Threshold = 250.0f;
-
+		
 		if ( mode == Good )
 		{
 			if ( rtt > RTT_Threshold )
@@ -168,6 +170,7 @@ int main( int argc, char * argv[] )
 	
 	FlowControl flowControl;
 	
+	// ---------- True loop ---------- //
 	while ( true )
 	{
 		// update flow control
@@ -199,24 +202,49 @@ int main( int argc, char * argv[] )
 		}
 		
 		// send and receive packets
-		
 		sendAccumulator += DeltaTime;
-		
+
+		// FILE IO stuff -- Remove this later ------- //
+		FILE* fileToSend = NULL;
+		fileToSend = fopen("C:\\Users\\Ggurgel8686\\source\\repos\\SET\\file.txt", "rb");	// Not working outside the loop
+
+		if (!fileToSend)
+		{
+			return -10;
+		}
+
+
+		// Send loop
 		while ( sendAccumulator > 1.0f / sendRate )
 		{
 			unsigned char packet[PacketSize];
+			memset( packet, 0, sizeof( packet ));
 
-			memset( packet, 0, sizeof( packet ) );
-			connection.SendPacket( packet, sizeof( packet ) );
+			// ------> OUR CODE <----
+			//int bytesRead = 0;
+
+			//while (continueRead && (bytesRead = fread(packet, 1, sizeof(packet), fileToSend)))
+			//{
+			//	if (bytesRead < 10)
+			//	{
+			//		continueRead = false;
+			//	}
+			//	printf("-------------> %s\n", packet);
+			//}
+			//free(packet);
+			
+			//connection.SendPacket(packet, sizeof(packet));
 			sendAccumulator -= 1.0f / sendRate;
 		}
+		fclose(fileToSend);
+
 		byte content[PACKETSIZE] = "";
 		//add a byte array to use to hold contents of packet, making it accessible outside of following scope:
 		//TIME FOR A PROTOCOL BOOOOYYAAAKKKAASSHHHAAA
 		while ( true )
 		{
 			//CHANGEMADE
-			unsigned char packet[PACKETSIZE] ="";
+			unsigned char packet[PACKETSIZE] = "";
 			int bytes_read = connection.ReceivePacket( packet, sizeof(packet) );
 			if ( bytes_read == 0 )
 				break;
@@ -276,3 +304,4 @@ int main( int argc, char * argv[] )
 
 	return 0;
 }
+

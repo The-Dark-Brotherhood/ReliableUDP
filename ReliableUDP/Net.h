@@ -17,6 +17,8 @@
 #define PLATFORM_UNIX     3
 #define PACKETSIZE		  300
 
+bool fileToPacketChunks(unsigned char packet[], FILE* file);
+
 #if defined(_WIN32)
 #define PLATFORM PLATFORM_WINDOWS
 #elif defined(__APPLE__)
