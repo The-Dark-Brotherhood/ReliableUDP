@@ -139,8 +139,6 @@ int main( int argc, char * argv[] )
 		}
 	}
 
-	// initialize
-
 	if ( !InitializeSockets() )
 	{
 		printf( "failed to initialize sockets\n" );
@@ -167,8 +165,14 @@ int main( int argc, char * argv[] )
 	float statsAccumulator = 0.0f;
 	
 	FlowControl flowControl;
+
+	// initialize;
+	// FILE IO stuff 
+	bool continueSending = true;
+	FILE* fileToSend = NULL;
+	fileToSend = fopen("C:\\Users\\Ggurgel8686\\source\\repos\\SET\\file.txt", "rb");	// Not working outside the loop
 	
-	while ( true )
+	while ( continueSending )
 	{
 		// update flow control
 		
@@ -201,21 +205,30 @@ int main( int argc, char * argv[] )
 		// send and receive packets
 		
 		sendAccumulator += DeltaTime;
-		
-		while ( sendAccumulator > 1.0f / sendRate )
-		{
-			unsigned char packet[PacketSize];
 
+		while (connection.IsConnected()  && sendAccumulator > 1.0f / sendRate)
+		{
+			unsigned char packet[CONTENTSIZE];
 			memset( packet, 0, sizeof( packet ) );
-			connection.SendPacket( packet, sizeof( packet ) );
+
+			// ------> OUR CODE <----
+			int bytesRead = fread(packet, 1, CONTENTSIZE, fileToSend);
+			printf("-------------> %s\n", packet);
+
+			connection.SendPacket( packet, CONTENTSIZE );
 			sendAccumulator -= 1.0f / sendRate;
+			if (bytesRead < CONTENTSIZE)
+			{
+				fclose(fileToSend);
+				continueSending = false;
+			}
 		}
+		
 		byte content[PACKETSIZE] = "";
 		//add a byte array to use to hold contents of packet, making it accessible outside of following scope:
 		//TIME FOR A PROTOCOL BOOOOYYAAAKKKAASSHHHAAA
 		while ( true )
 		{
-			//CHANGEMADE
 			unsigned char packet[PACKETSIZE] ="";
 			int bytes_read = connection.ReceivePacket( packet, sizeof(packet) );
 			if ( bytes_read == 0 )
