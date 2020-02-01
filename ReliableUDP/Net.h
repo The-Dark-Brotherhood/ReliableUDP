@@ -16,7 +16,7 @@
 #define PLATFORM_MAC      2
 #define PLATFORM_UNIX     3
 #define PACKETSIZE		  300
-#define CONTENTSIZE		  200
+#define CONTENTSIZE		  10
 
 #if defined(_WIN32)
 #define PLATFORM PLATFORM_WINDOWS
@@ -451,7 +451,7 @@ namespace net
 			packet[1] = (unsigned char) ( ( protocolId >> 16 ) & 0xFF );
 			packet[2] = (unsigned char) ( ( protocolId >> 8 ) & 0xFF );
 			packet[3] = (unsigned char) ( ( protocolId ) & 0xFF );
-      std::memcpy( &packet[4], data, size );
+			std::memcpy( &packet[4], data, size );
 			return socket.Send( address, packet, size + 4 );
 		}
 		
@@ -977,7 +977,9 @@ namespace net
 			unsigned int ack = reliabilitySystem.GetRemoteSequence();
 			unsigned int ack_bits = reliabilitySystem.GenerateAckBits();
 			WriteHeader( packet, seq, ack, ack_bits );
-      std::memcpy( packet + header, data, size );
+
+
+			std::memcpy( packet + header, data, size );
  			if ( !Connection::SendPacket( packet, size + header ) )
 				return false;
 			reliabilitySystem.PacketSent( size );
