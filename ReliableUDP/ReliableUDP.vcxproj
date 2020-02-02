@@ -138,10 +138,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="FlowControl.h" />
     <ClInclude Include="Net.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Example.cpp" />
+    <ClCompile Include="FlowControl.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

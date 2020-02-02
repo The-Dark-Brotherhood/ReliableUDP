@@ -16,6 +16,7 @@
 #define PLATFORM_MAC      2
 #define PLATFORM_UNIX     3
 #define PACKETSIZE		  300
+#define CONTENTSIZE		  10
 
 #if defined(_WIN32)
 #define PLATFORM PLATFORM_WINDOWS

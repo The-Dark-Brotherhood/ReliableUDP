@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "Net.h"
+#include "FlowControl.h"
 
 //#define SHOW_ACKS
 
@@ -24,97 +25,6 @@ const float SendRate = 1.0f / 30.0f;
 const float TimeOut = 10.0f;
 const int PacketSize = 256;
 
-class FlowControl
-{
-public:
-	
-	FlowControl()
-	{
-		printf( "flow control initialized\n" );
-		Reset();
-	}
-	
-	void Reset()
-	{
-		mode = Bad;
-		penalty_time = 4.0f;
-		good_conditions_time = 0.0f;
-		penalty_reduction_accumulator = 0.0f;
-	}
-	
-	void Update( float deltaTime, float rtt )
-	{
-		const float RTT_Threshold = 250.0f;
-
-		if ( mode == Good )
-		{
-			if ( rtt > RTT_Threshold )
-			{
-				printf( "*** dropping to bad mode ***\n" );
-				mode = Bad;
-				if ( good_conditions_time < 10.0f && penalty_time < 60.0f )
-				{
-					penalty_time *= 2.0f;
-					if ( penalty_time > 60.0f )
-						penalty_time = 60.0f;
-					printf( "penalty time increased to %.1f\n", penalty_time );
-				}
-				good_conditions_time = 0.0f;
-				penalty_reduction_accumulator = 0.0f;
-				return;
-			}
-			
-			good_conditions_time += deltaTime;
-			penalty_reduction_accumulator += deltaTime;
-			
-			if ( penalty_reduction_accumulator > 10.0f && penalty_time > 1.0f )
-			{
-				penalty_time /= 2.0f;
-				if ( penalty_time < 1.0f )
-					penalty_time = 1.0f;
-				printf( "penalty time reduced to %.1f\n", penalty_time );
-				penalty_reduction_accumulator = 0.0f;
-			}
-		}
-		
-		if ( mode == Bad )
-		{
-			if ( rtt <= RTT_Threshold )
-				good_conditions_time += deltaTime;
-			else
-				good_conditions_time = 0.0f;
-				
-			if ( good_conditions_time > penalty_time )
-			{
-				printf( "*** upgrading to good mode ***\n" );
-				good_conditions_time = 0.0f;
-				penalty_reduction_accumulator = 0.0f;
-				mode = Good;
-				return;
-			}
-		}
-	}
-	
-	float GetSendRate()
-	{
-		return mode == Good ? 30.0f : 10.0f;
-	}
-	
-private:
-
-	enum Mode
-	{
-		Good,
-		Bad
-	};
-
-	Mode mode;
-	float penalty_time;
-	float good_conditions_time;
-	float penalty_reduction_accumulator;
-};
-
-// ----------------------------------------------
 
 int main( int argc, char * argv[] )
 {
@@ -168,6 +78,13 @@ int main( int argc, char * argv[] )
 	
 	FlowControl flowControl;
 	
+	//--> Relevant Info --//
+	bool continueSending = true;
+	bool continueReceiving = true;
+	unsigned int packetCounter = 0;
+	FILE* fileToSend = NULL;
+	fileToSend = fopen("C:\\Users\\Ggurgel8686\\source\\repos\\SET\\file.txt", "rb");	
+
 	while ( true )
 	{
 		// update flow control
@@ -202,29 +119,57 @@ int main( int argc, char * argv[] )
 		
 		sendAccumulator += DeltaTime;
 		
-		while ( sendAccumulator > 1.0f / sendRate )
+		while (sendAccumulator > 1.0f / sendRate )
 		{
 			unsigned char packet[PacketSize];
-
 			memset( packet, 0, sizeof( packet ) );
+			unsigned char bytesRead = 0;
+
+			//--> OUR CODE 
+			//if (mode == Server)
+			bytesRead = fread(packet, 1, CONTENTSIZE, fileToSend);  // I changed the read bytes to remove the space for the extra info(footer)
+			if (bytesRead != 0)	// Packet with content
+			{
+				packetCounter++;
+				packet[10] = bytesRead;
+				memcpy(packet + 11 , &packetCounter, sizeof(packetCounter));
+				// Write footer -> will be moved to elsewhere 
+				printf("-> #%d - %s\n", bytesRead, packet);
+			}
+
 			connection.SendPacket( packet, sizeof( packet ) );
 			sendAccumulator -= 1.0f / sendRate;
+
+			// Close file and exit loop when the last packet was already sent 
+			if (bytesRead < CONTENTSIZE || bytesRead == 0)
+			{
+				fclose(fileToSend);
+			}
 		}
-		byte content[PACKETSIZE] = "";
-		//add a byte array to use to hold contents of packet, making it accessible outside of following scope:
-		//TIME FOR A PROTOCOL BOOOOYYAAAKKKAASSHHHAAA
+
+		FILE* pFile = NULL;
+
 		while ( true )
 		{
 			//CHANGEMADE
-			unsigned char packet[PACKETSIZE] ="";
+			unsigned char packet[PACKETSIZE] = "";
 			int bytes_read = connection.ReceivePacket( packet, sizeof(packet) );
-			if ( bytes_read == 0 )
-				break;
-			for (int i = 0; i < sizeof(packet); i++)
+
+			int counter = 0;
+			int packetRead = (int) packet[10];
+			if (packetRead > 0)
 			{
-				content[i] = packet[i];
+				pFile = fopen(".\\crapola.txt", "ab");
+				fwrite(packet, 1, packetRead, pFile);
+				fclose(pFile);
 			}
-			
+			memcpy(&counter, packet + 11 , sizeof(counter));
+			//if (mode == Client)
+			{
+				printf("Packet Info -> Bytes to read: %d && Packets Counter: %d\n", packetRead, counter);
+			}
+			if ( bytes_read == 0 )
+				break;			
 		}
 		
 		// show packets that were acked this frame
@@ -275,4 +220,9 @@ int main( int argc, char * argv[] )
 	ShutdownSockets();
 
 	return 0;
+}
+
+void MakeFileFromPacket(FILE* newFile, unsigned char packetFooter)
+{
+
 }
