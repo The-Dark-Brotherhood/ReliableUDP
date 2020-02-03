@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <utility> 
 
 #include "Net.h"
 #include "FlowControl.h"
@@ -147,7 +148,9 @@ int main( int argc, char * argv[] )
 			}
 		}
 
-		FILE* pFile = NULL;
+		ofstream fout;
+		map<int, tuple< vector<unsigned char>, int > > receivedPackets;
+		int nextPacketToWrite = 1;
 
 		while ( true )
 		{
@@ -155,19 +158,10 @@ int main( int argc, char * argv[] )
 			unsigned char packet[PACKETSIZE] = "";
 			int bytes_read = connection.ReceivePacket( packet, sizeof(packet) );
 
-			int counter = 0;
-			int packetRead = (int) packet[10];
-			if (packetRead > 0)
-			{
-				pFile = fopen(".\\crapola.txt", "ab");
-				fwrite(packet, 1, packetRead, pFile);
-				fclose(pFile);
-			}
-			memcpy(&counter, packet + 11 , sizeof(counter));
-			//if (mode == Client)
-			{
-				printf("Packet Info -> Bytes to read: %d && Packets Counter: %d\n", packetRead, counter);
-			}
+			////if (mode == Client)
+			//{
+			//	printf("Packet Info -> Bytes to read: %d && Packets Counter: %d\n", packetRead, counter);
+			//}
 			if ( bytes_read == 0 )
 				break;			
 		}
@@ -222,7 +216,32 @@ int main( int argc, char * argv[] )
 	return 0;
 }
 
-void MakeFileFromPacket(FILE* newFile, unsigned char packetFooter)
+void MakeFileFromPacket(ofstream newFile, unsigned char packet[], map<int, pair< vector<unsigned char>, int > > receivedPackets, int nextPacketToWrite)
 {
+	vector<unsigned char> tempBuffer(packet, packet + sizeof(packet));
+	int counter = 0;
+	int packetRead = (int)packet[10];
+	memcpy(&counter, packet + 11, sizeof(counter));
 
+	// Case: The next packet to be written is in the temporay packet map
+	if (receivedPackets.find(nextPacketToWrite) != receivedPackets.end())
+	{
+		counter = nextPacketToWrite;
+		tempBuffer = receivedPackets[nextPacketToWrite].first;
+		packetRead = receivedPackets[nextPacketToWrite].second;
+	}
+	
+	// Write packet in the file
+	if (counter == nextPacketToWrite)
+	{
+		newFile.open(".\\crapola.txt", ios::out | ios::binary | ios::app);
+		newFile.write((char*)&tempBuffer[0], packetRead);
+		newFile.close();
+	}
+	// Store in the map
+	else
+	{
+		pair<vector<unsigned char>, int> packetInfo = make_pair(tempBuffer, packetRead);
+		receivedPackets.insert(pair <int, pair<vector<unsigned char>, int>> (counter, packetInfo));
+	}
 }
