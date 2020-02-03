@@ -18,7 +18,16 @@
     <ClCompile Include="Example.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FlowControl.cpp">
+    <ClCompile Include="Address.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Socket.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Address.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Socket.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,8 +35,23 @@
     <ClInclude Include="Net.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Connection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketQueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ReliabilitySystem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ReliableConnection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="FlowControl.h">
-      <Filter>Resource Files</Filter>
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

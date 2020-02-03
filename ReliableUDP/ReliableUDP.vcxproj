@@ -138,12 +138,20 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Connection.h" />
     <ClInclude Include="FlowControl.h" />
     <ClInclude Include="Net.h" />
+    <ClInclude Include="PacketData.h" />
+    <ClInclude Include="PacketQueue.h" />
+    <ClInclude Include="ReliabilitySystem.h" />
+    <ClInclude Include="ReliableConnection.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Address.cpp" />
+    <ClCompile Include="Address.h" />
     <ClCompile Include="Example.cpp" />
-    <ClCompile Include="FlowControl.cpp" />
+    <ClCompile Include="Socket.cpp" />
+    <ClCompile Include="Socket.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
