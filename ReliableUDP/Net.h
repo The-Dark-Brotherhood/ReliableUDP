@@ -451,7 +451,7 @@ namespace net
 			packet[1] = (unsigned char) ( ( protocolId >> 16 ) & 0xFF );
 			packet[2] = (unsigned char) ( ( protocolId >> 8 ) & 0xFF );
 			packet[3] = (unsigned char) ( ( protocolId ) & 0xFF );
-      std::memcpy( &packet[4], data, size );
+			std::memcpy( &packet[4], data, size );
 			return socket.Send( address, packet, size + 4 );
 		}
 		
@@ -1001,7 +1001,7 @@ namespace net
 			ReadHeader( packet, packet_sequence, packet_ack, packet_ack_bits );
 			reliabilitySystem.PacketReceived( packet_sequence, received_bytes - header );
 			reliabilitySystem.ProcessAck( packet_ack, packet_ack_bits );
-      std::memcpy( data, packet + header, received_bytes - header );
+			std::memcpy( data, packet + header, received_bytes - header );
 			return received_bytes - header;
 		}
 		
