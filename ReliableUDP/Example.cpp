@@ -84,7 +84,7 @@ int main( int argc, char * argv[] )
 	bool continueReceiving = true;
 	unsigned int packetCounter = 0;
 	FILE* fileToSend = NULL;
-	fileToSend = fopen("C:\\Users\\Ggurgel8686\\source\\repos\\SET\\file.txt", "rb");	
+	fileToSend = fopen("C:\\Users\\Ggurgel8686\\source\\repos\\SET\\file.txt", "rb");
 
 	while ( true )
 	{
@@ -120,6 +120,7 @@ int main( int argc, char * argv[] )
 		
 		sendAccumulator += DeltaTime;
 		
+		//----- Sending Packets -----//
 		while (sendAccumulator > 1.0f / sendRate )
 		{
 			unsigned char packet[PacketSize];
@@ -127,17 +128,20 @@ int main( int argc, char * argv[] )
 			unsigned char bytesRead = 0;
 
 			//--> OUR CODE 
-			//if (mode == Server)
 			bytesRead = fread(packet, 1, CONTENTSIZE, fileToSend);  // I changed the read bytes to remove the space for the extra info(footer)
 			if (bytesRead != 0)	// Packet with content
 			{
 				packetCounter++;
 				packet[10] = bytesRead;
-				memcpy(packet + 11 , &packetCounter, sizeof(packetCounter));
+				memcpy(packet + 11, &packetCounter, sizeof(packetCounter));
+				
 				// Write footer -> will be moved to elsewhere 
 				printf("-> #%d - %s\n", bytesRead, packet);
+
 			}
 
+
+			// Send Packet
 			connection.SendPacket( packet, sizeof( packet ) );
 			sendAccumulator -= 1.0f / sendRate;
 
@@ -148,6 +152,7 @@ int main( int argc, char * argv[] )
 			}
 		}
 
+		//----- Receiving Packets -----//
 		ofstream fout;
 		map<int, tuple< vector<unsigned char>, int > > receivedPackets;
 		int nextPacketToWrite = 1;
@@ -158,10 +163,6 @@ int main( int argc, char * argv[] )
 			unsigned char packet[PACKETSIZE] = "";
 			int bytes_read = connection.ReceivePacket( packet, sizeof(packet) );
 
-			////if (mode == Client)
-			//{
-			//	printf("Packet Info -> Bytes to read: %d && Packets Counter: %d\n", packetRead, counter);
-			//}
 			if ( bytes_read == 0 )
 				break;			
 		}
