@@ -8,8 +8,10 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <utility> 
 
 #include "Net.h"
+#include "FlowControl.h"
 
 //#define SHOW_ACKS
 
@@ -24,9 +26,10 @@ const float SendRate = 1.0f / 30.0f;
 const float TimeOut = 10.0f;
 const int PacketSize = 256;
 
-// ----------------------------------------------
+void MakeFileFromPacket(unsigned char packet[]);
 
-int main( int argc, char * argv[] )
+
+int main(int argc, char* argv[])
 {
 	// parse command line
 
@@ -39,154 +42,191 @@ int main( int argc, char * argv[] )
 	Mode mode = Server;
 	Address address;
 
-	if ( argc >= 2 )
+	if (argc >= 2)
 	{
-		int a,b,c,d;
-		if ( sscanf( argv[1], "%d.%d.%d.%d", &a, &b, &c, &d ) )
+		int a, b, c, d;
+		if (sscanf(argv[1], "%d.%d.%d.%d", &a, &b, &c, &d))
 		{
 			mode = Client;
-			address = Address(a,b,c,d,ServerPort);
+			address = Address(a, b, c, d, ServerPort);
 		}
 	}
 
 	// initialize
 
-	if ( !InitializeSockets() )
+	if (!InitializeSockets())
 	{
-		printf( "failed to initialize sockets\n" );
+		printf("failed to initialize sockets\n");
 		return 1;
 	}
 
-	ReliableConnection connection( ProtocolId, TimeOut );
-	
+	ReliableConnection connection(ProtocolId, TimeOut);
+
 	const int port = mode == Server ? ServerPort : ClientPort;
-	
-	if ( !connection.Start( port ) )
+
+	if (!connection.Start(port))
 	{
-		printf( "could not start connection on port %d\n", port );
+		printf("could not start connection on port %d\n", port);
 		return 1;
 	}
-	
-	if ( mode == Client )
-		connection.Connect( address );
+
+	if (mode == Client)
+		connection.Connect(address);
 	else
 		connection.Listen();
-	
+
 	bool connected = false;
 	float sendAccumulator = 0.0f;
 	float statsAccumulator = 0.0f;
-	
+
 	FlowControl flowControl;
-	
-	while ( true )
+
+	//--> Relevant Info --//
+	unsigned int packetCounter = 0;
+	string filepath = "C:\\Users\\Ggurgel8686\\source\\repos\\SET\\file.txt";
+	FILE* fileToSend = NULL;
+	fileToSend = fopen(filepath.c_str(), "rb");
+
+	while (true)
 	{
 		// update flow control
-		
-		if ( connection.IsConnected() )
-			flowControl.Update( DeltaTime, connection.GetReliabilitySystem().GetRoundTripTime() * 1000.0f );
-		
+
+		if (connection.IsConnected())
+			flowControl.Update(DeltaTime, connection.GetReliabilitySystem().GetRoundTripTime() * 1000.0f);
+
 		const float sendRate = flowControl.GetSendRate();
 
 		// detect changes in connection state
 
-		if ( mode == Server && connected && !connection.IsConnected() )
+		if (mode == Server && connected && !connection.IsConnected())
 		{
 			flowControl.Reset();
-			printf( "reset flow control\n" );
+			printf("reset flow control\n");
 			connected = false;
 		}
 
-		if ( !connected && connection.IsConnected() )
+		if (!connected && connection.IsConnected())
 		{
-			printf( "client connected to server\n" );
+			printf("client connected to server\n");
 			connected = true;
 		}
-		
-		if ( !connected && connection.ConnectFailed() )
+
+		if (!connected && connection.ConnectFailed())
 		{
-			printf( "connection failed\n" );
+			printf("connection failed\n");
 			break;
 		}
-		
+
 		// send and receive packets
-		
+
 		sendAccumulator += DeltaTime;
-		
-		while ( sendAccumulator > 1.0f / sendRate )
+
+		//----- Sending Packets -----//
+		while (sendAccumulator > 1.0f / sendRate)
 		{
 			unsigned char packet[PacketSize];
+			memset(packet, 0, sizeof(packet));
+			unsigned char bytesRead = 0;
 
-			memset( packet, 0, sizeof( packet ) );
-			//ReliableUDP: add packet information here??
-			packet[0] = 'E';
-			packet[1] = 'F';
-			connection.SendPacket( packet, sizeof( packet ) );
-			
+			// Build filename with extension packet 
+			//if (packetCounter == 0)
+			//{
+
+			//}
+
+			//--> OUR CODE 
+			bytesRead = fread(packet, 1, CONTENTSIZE, fileToSend);  // I changed the read bytes to remove the space for the extra info(footer)
+			if (bytesRead != 0)	// Packet with content
+			{
+				packet[10] = bytesRead;
+			}
+
+			// Send Packet
+			connection.SendPacket(packet, sizeof(packet));
 			sendAccumulator -= 1.0f / sendRate;
+
+			// Close file and exit loop when the last packet was already sent 
+			if (bytesRead < CONTENTSIZE || bytesRead == 0)
+			{
+				fclose(fileToSend);
+			}
 		}
-		byte content[PACKETSIZE] = "";
-		//add a byte array to use to hold contents of packet, making it accessible outside of following scope:
-		//TIME FOR A PROTOCOL BOOOOYYAAAKKKAASSHHHAAA
-		while ( true )
+
+		//----- Receiving Packets -----//
+		char bytesRead = 0;
+		while (true)
 		{
 			//CHANGEMADE
-			unsigned char packet[PACKETSIZE] ="";
-			int bytes_read = connection.ReceivePacket( packet, sizeof(packet) );
-			if ( bytes_read == 0 )
+			unsigned char packet[PACKETSIZE] = "";
+			int bytes_read = connection.ReceivePacket(packet, sizeof(packet));
+			if (bytes_read <= 0)
 				break;
-			for (int i = 0; i < sizeof(packet); i++)
+			else
 			{
-				content[i] = packet[i];
+				MakeFileFromPacket(packet);
 			}
-			
 		}
-		
+	
+
 		// show packets that were acked this frame
-		
-		#ifdef SHOW_ACKS
-		unsigned int * acks = NULL;
+
+#ifdef SHOW_ACKS
+		unsigned int* acks = NULL;
 		int ack_count = 0;
-		connection.GetReliabilitySystem().GetAcks( &acks, ack_count );
-		if ( ack_count > 0 )
+		connection.GetReliabilitySystem().GetAcks(&acks, ack_count);
+		if (ack_count > 0)
 		{
-			printf( "acks: %d", acks[0] );
-			for ( int i = 1; i < ack_count; ++i )
-				printf( ",%d", acks[i] );
-			printf( "\n" );
+			printf("acks: %d", acks[0]);
+			for (int i = 1; i < ack_count; ++i)
+				printf(",%d", acks[i]);
+			printf("\n");
 		}
-		#endif
+#endif
 
 		// update connection
-		
-		connection.Update( DeltaTime );
+
+		connection.Update(DeltaTime);
 
 		// show connection stats
-		
+
 		statsAccumulator += DeltaTime;
 
-		while ( statsAccumulator >= 0.25f && connection.IsConnected() )
+		while (statsAccumulator >= 0.25f && connection.IsConnected())
 		{
 			float rtt = connection.GetReliabilitySystem().GetRoundTripTime();
-			
+
 			unsigned int sent_packets = connection.GetReliabilitySystem().GetSentPackets();
 			unsigned int acked_packets = connection.GetReliabilitySystem().GetAckedPackets();
 			unsigned int lost_packets = connection.GetReliabilitySystem().GetLostPackets();
-			
+
 			float sent_bandwidth = connection.GetReliabilitySystem().GetSentBandwidth();
 			float acked_bandwidth = connection.GetReliabilitySystem().GetAckedBandwidth();
-			
-			printf( "rtt %.1fms, sent %d, acked %d, lost %d (%.1f%%), sent bandwidth = %.1fkbps, acked bandwidth = %.1fkbps\n", 
-				rtt * 1000.0f, sent_packets, acked_packets, lost_packets, 
-				sent_packets > 0.0f ? (float) lost_packets / (float) sent_packets * 100.0f : 0.0f, 
-				sent_bandwidth, acked_bandwidth );
-			
+
+			printf("rtt %.1fms, sent %d, acked %d, lost %d (%.1f%%), sent bandwidth = %.1fkbps, acked bandwidth = %.1fkbps\n",
+				rtt * 1000.0f, sent_packets, acked_packets, lost_packets,
+				sent_packets > 0.0f ? (float)lost_packets / (float)sent_packets * 100.0f : 0.0f,
+				sent_bandwidth, acked_bandwidth);
+
 			statsAccumulator -= 0.25f;
 		}
 
-		net::wait( DeltaTime );
+		net::wait(DeltaTime);
 	}
-	
+
 	ShutdownSockets();
 
 	return 0;
+}
+
+void MakeFileFromPacket(unsigned char packet[])
+{
+	ofstream newFile;
+	vector<unsigned char> tempBuffer(packet, packet + 10);
+
+	int packetRead = (int)packet[10];
+
+	// Write to file
+	newFile.open(".\\crapola.txt", ios::out | ios::binary | ios::app);
+	newFile.write((char*)&tempBuffer[0], packetRead);
+	newFile.close();
 }
