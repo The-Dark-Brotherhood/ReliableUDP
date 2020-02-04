@@ -11,7 +11,7 @@
 #define PLATFORM_MAC      2
 #define PLATFORM_UNIX     3
 #define PACKETSIZE		  300
-#define CONTENTSIZE		  11
+#define CONTENTSIZE		  201
 
 
 

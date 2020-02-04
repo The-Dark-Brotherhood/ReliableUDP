@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 
 	//--> Relevant Info --//
 	unsigned int packetCounter = 0;
-	string filepath = "C:\\Users\\Ggurgel8686\\source\\repos\\SET\\file.txt";
+	string filepath = "C:\\Users\\Ggurgel8686\\source\\repos\\SET\\huge.png";
 	FILE* fileToSend = NULL;
 	fileToSend = fopen(filepath.c_str(), "rb");
 
@@ -122,31 +122,24 @@ int main(int argc, char* argv[])
 		sendAccumulator += DeltaTime;
 
 		//----- Sending Packets -----//
-		while (sendAccumulator > 1.0f / sendRate)
+		while (connection.IsConnected() && sendAccumulator > 1.0f / sendRate)
 		{
 			unsigned char packet[PacketSize];
 			memset(packet, 0, sizeof(packet));
 			unsigned char bytesRead = 0;
 
-			// Build filename with extension packet 
-			//if (packetCounter == 0)
-			//{
-
-			//}
-
 			//--> OUR CODE 
-			bytesRead = fread(packet, 1, CONTENTSIZE, fileToSend);  // I changed the read bytes to remove the space for the extra info(footer)
+			bytesRead = fread(packet, 1, CONTENTSIZE - 1, fileToSend);  // I changed the read bytes to remove the space for the extra info(footer)
 			if (bytesRead != 0)	// Packet with content
 			{
-				packet[10] = bytesRead;
+				packet[200] = bytesRead;
+				// Send Packet
+				connection.SendPacket(packet, sizeof(packet));
+				sendAccumulator -= 1.0f / sendRate;
 			}
 
-			// Send Packet
-			connection.SendPacket(packet, sizeof(packet));
-			sendAccumulator -= 1.0f / sendRate;
-
 			// Close file and exit loop when the last packet was already sent 
-			if (bytesRead < CONTENTSIZE || bytesRead == 0)
+			if (bytesRead < CONTENTSIZE - 1 || bytesRead == 0)
 			{
 				fclose(fileToSend);
 			}
@@ -221,12 +214,10 @@ int main(int argc, char* argv[])
 void MakeFileFromPacket(unsigned char packet[])
 {
 	ofstream newFile;
-	vector<unsigned char> tempBuffer(packet, packet + 10);
-
-	int packetRead = (int)packet[10];
+	int bytesToWrite = (int)packet[200];
 
 	// Write to file
 	newFile.open(".\\crapola.txt", ios::out | ios::binary | ios::app);
-	newFile.write((char*)&tempBuffer[0], packetRead);
+	newFile.write((char*)packet, bytesToWrite);
 	newFile.close();
 }
