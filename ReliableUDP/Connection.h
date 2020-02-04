@@ -35,6 +35,8 @@ public:
 			Stop();
 	}
 
+	//Start the connection by opening a socket
+	//set running to true
 	bool Start(int port)
 	{
 		assert(!running);
@@ -46,6 +48,7 @@ public:
 		return true;
 	}
 
+	//Close the connection
 	void Stop()
 	{
 		assert(running);
@@ -64,6 +67,8 @@ public:
 		return running;
 	}
 
+	//check if connected, clear data, if connected, call 
+	//on disconnect to clear data/reset
 	void Listen()
 	{
 		printf("server listening for connection\n");
@@ -189,6 +194,7 @@ public:
 		return 0;
 	}
 
+	//constant get size:4
 	int GetHeaderSize() const
 	{
 		return 4;
@@ -202,7 +208,8 @@ protected:
 	virtual void OnDisconnect() {}
 
 private:
-
+	//set state to disconnected
+	//timeout accumulator to 0
 	void ClearData()
 	{
 		state = Disconnected;
