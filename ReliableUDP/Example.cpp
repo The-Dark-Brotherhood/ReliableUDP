@@ -26,7 +26,7 @@ const float SendRate = 1.0f / 30.0f;
 const float TimeOut = 10.0f;
 const int PacketSize = 256;
 
-void MakeFileFromPacket(unsigned char packet[]);
+void MakeFileFromPacket(unsigned char packet[], char filename[]);
 
 
 int main(int argc, char* argv[])
@@ -82,10 +82,13 @@ int main(int argc, char* argv[])
 	FlowControl flowControl;
 
 	//--> Relevant Info --//
-	unsigned int packetCounter = 0;
 	string filepath = "C:\\Users\\Ggurgel8686\\source\\repos\\SET\\huge.png";
 	FILE* fileToSend = NULL;
 	fileToSend = fopen(filepath.c_str(), "rb");
+	string filename = "huge.png";
+	int checksum = 34000;
+	bool firstPacket = true;
+
 
 	while (true)
 	{
@@ -126,37 +129,75 @@ int main(int argc, char* argv[])
 		{
 			unsigned char packet[PacketSize];
 			memset(packet, 0, sizeof(packet));
+
 			unsigned char bytesRead = 0;
-
-			//--> OUR CODE 
-			bytesRead = fread(packet, 1, CONTENTSIZE - 1, fileToSend);  // I changed the read bytes to remove the space for the extra info(footer)
-			if (bytesRead != 0)	// Packet with content
+			char packetType = 0;
+			
+			// First Packet -> Checksum and filename 
+			if (firstPacket)
 			{
-				packet[200] = bytesRead;
-				// Send Packet
-				connection.SendPacket(packet, sizeof(packet));
-				sendAccumulator -= 1.0f / sendRate;
+				packetType = FIRSTPACKET;
+				memcpy(packet, (char*)filename.c_str(), filename.length);
+				bytesRead = filename.length;
+
+				firstPacket = false;
+			}
+			else
+			{
+				bytesRead = fread(packet, 1, CONTENTSIZE - 1, fileToSend);
+
+				// Packet with content -> Write footer and send packet
+				if (bytesRead != 0)
+				{
+					packetType = PACKET;
+					packet[PACKETSIZE - FOOTERSIZE] = bytesRead;
+					packet[PACKETSIZE - FOOTERSIZE - 1] = PACKET;
+				}
+
+				// Last Packet -> Close file and send last packet 
+				if (bytesRead < CONTENTSIZE - (FOOTERSIZE - 1) || bytesRead == 0)
+				{
+					packetType = LASTPACKET;
+					memcpy(packet, &checksum, sizeof(checksum));
+					bytesRead = sizeof(checksum);
+					fclose(fileToSend);
+				}
 			}
 
-			// Close file and exit loop when the last packet was already sent 
-			if (bytesRead < CONTENTSIZE - 1 || bytesRead == 0)
-			{
-				fclose(fileToSend);
-			}
+			connection.SendPacket(packet, sizeof(packet));
+			sendAccumulator -= 1.0f / sendRate;
 		}
 
 		//----- Receiving Packets -----//
 		char bytesRead = 0;
+		char recevingfile[] = "";
+
 		while (true)
 		{
-			//CHANGEMADE
+			int receivingCheck = 0;
+
+			char packetType = 0;
 			unsigned char packet[PACKETSIZE] = "";
-			int bytes_read = connection.ReceivePacket(packet, sizeof(packet));
-			if (bytes_read <= 0)
+			int byteRead = connection.ReceivePacket(packet, sizeof(packet));
+
+			// Type of packet byte 
+			packetType = packet[CONTENTSIZE - (FOOTERSIZE - 1)];
+
+			if (packetType == FIRSTPACKET)
+			{
+				memcpy(recevingfile, packet, bytesRead);
+			}
+			else if (packetType == LASTPACKET)
+			{
+				memcpy(&receivingCheck, packet, bytesRead);
+			}
+			else if (bytesRead <= 0)
+			{
 				break;
+			}
 			else
 			{
-				MakeFileFromPacket(packet);
+				MakeFileFromPacket(packet, recevingfile);
 			}
 		}
 	
@@ -211,13 +252,15 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
-void MakeFileFromPacket(unsigned char packet[])
+void MakeFileFromPacket(unsigned char packet[], char filename[])
 {
 	ofstream newFile;
 	int bytesToWrite = (int)packet[200];
 
 	// Write to file
-	newFile.open(".\\crapola.txt", ios::out | ios::binary | ios::app);
+	newFile.open(filename, ios::out | ios::binary | ios::app);
 	newFile.write((char*)packet, bytesToWrite);
 	newFile.close();
 }
+
+
